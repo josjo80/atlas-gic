@@ -9,7 +9,9 @@ import time
 from typing import Dict, List, Tuple
 
 _BASE = "https://api.massive.com"
-_DELAY = 0.2  # seconds between requests
+_DELAY = 12.5  # seconds between requests (5 req/min limit)
+_MAX_RETRIES = 2
+_BACKOFF_SECONDS = 12.5
 
 
 def fetch_quotes(tickers: List[str], api_key: str) -> Dict[str, Tuple[float, float]]:
@@ -23,22 +25,28 @@ def fetch_quotes(tickers: List[str], api_key: str) -> Dict[str, Tuple[float, flo
 
     results: Dict[str, Tuple[float, float]] = {}
     for ticker in tickers:
-        resp = requests.get(
-            f"{_BASE}/v2/aggs/ticker/{ticker}/prev",
-            params={"apiKey": api_key},
-            timeout=5,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        bars = data.get("results", [])
-        if not bars:
-            results[ticker] = (0.0, 0.0)
-            time.sleep(_DELAY)
-            continue
-        bar = bars[0]
-        close = float(bar["c"])
-        open_ = float(bar["o"])
-        daily_return = (close / open_ - 1) if open_ else 0.0
-        results[ticker] = (close, round(daily_return, 6))
+        attempt = 0
+        while True:
+            resp = requests.get(
+                f"{_BASE}/v2/aggs/ticker/{ticker}/prev",
+                params={"apiKey": api_key},
+                timeout=5,
+            )
+            if resp.status_code == 429 and attempt < _MAX_RETRIES:
+                attempt += 1
+                time.sleep(_BACKOFF_SECONDS * attempt)
+                continue
+            resp.raise_for_status()
+            data = resp.json()
+            bars = data.get("results", [])
+            if not bars:
+                results[ticker] = (0.0, 0.0)
+                break
+            bar = bars[0]
+            close = float(bar["c"])
+            open_ = float(bar["o"])
+            daily_return = (close / open_ - 1) if open_ else 0.0
+            results[ticker] = (close, round(daily_return, 6))
+            break
         time.sleep(_DELAY)
     return results
