@@ -141,28 +141,70 @@ The trained agents are deployed on real market data.
 ## Tech Stack
 
 - **Agents:** Claude Sonnet (Anthropic API)
-- **Data:** FMP, Finnhub, Polygon, FRED
+- **Data:** FMP, Finnhub, Massive, FRED
 - **Infrastructure:** Azure VM ($20/month)
 - **Version Control:** Git feature branches for autoresearch tracking
 - **Cost:** ~$50-80 for full 18-month backtest
 
 ---
 
-## Quickstart (Scaffold)
+## Quickstart
 
-This repo now includes a minimal runnable skeleton (mock data, no API keys).
+### Install
 
 ```bash
-# from repo root
 python -m venv .venv
 source .venv/bin/activate
 pip install -e .
+```
 
-# run 1 mock trading day
+### Run without API keys (mock mode)
+
+All components fall back gracefully — mock market data, mock LLM scoring. No keys required.
+
+```bash
+# 1 mock trading day
 python -m atlas
 
-# run 5 mock trading days
+# 5 mock trading days — triggers one autoresearch cycle
 python -m atlas --days 5
+```
+
+### Configure API keys
+
+Copy `.env.example` to `.env` and fill in any keys you have:
+
+```bash
+cp .env.example .env
+# then edit .env
+```
+
+| Variable | Service | Free tier? | Used for |
+|---|---|---|---|
+| `FINNHUB_API_KEY` | [finnhub.io](https://finnhub.io) | Yes (60 req/min) | Live quote prices + daily % change |
+| `MASSIVE_API_KEY` | [polygon.io](https://polygon.io) | Yes (5 req/min) | Previous-day OHLC (fallback if Finnhub unset) |
+| `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) | Pay-as-you-go | LLM agent scoring (Haiku) + autoresearch prompt generation (Sonnet) |
+
+Keys are loaded from `.env` via `python-dotenv`. Standard env vars also work.
+
+**Data priority:** Finnhub → Massive → mock.
+**LLM:** Anthropic → mock.
+
+### Autoresearch loop
+
+Every 5 simulated days the worst agent (by rolling Sharpe) gets its prompt improved:
+
+1. Branch `autoresearch/{agent}/{timestamp}` is created.
+2. `prompts/agents/{agent}.md` is edited — by Claude if `ANTHROPIC_API_KEY` is set, else a mock annotation is appended.
+3. The change is committed to the branch.
+4. A short evaluation window estimates the post-change Sharpe.
+5. If improved: branch is kept (review and merge at your discretion). If not: branch is deleted.
+
+> Autoresearch creates real git commits/branches in your local repo. All changes are reversible.
+
+```bash
+# 10 days → two autoresearch cycles
+python -m atlas --days 10
 ```
 
 ---
