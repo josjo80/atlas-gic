@@ -148,6 +148,25 @@ The trained agents are deployed on real market data.
 
 ---
 
+## Quickstart (Scaffold)
+
+This repo now includes a minimal runnable skeleton (mock data, no API keys).
+
+```bash
+# from repo root
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .
+
+# run 1 mock trading day
+python -m atlas
+
+# run 5 mock trading days
+python -m atlas --days 5
+```
+
+---
+
 ## Contact
 
 **Chris Worsey** - CEO & Technical Founder, General Intelligence Capital
