@@ -1,36 +1,44 @@
 """Massive.com market data adapter.
 
-Uses the /v1/quote endpoint with Bearer token auth.
+Uses the Massive REST API v2 Stocks Previous Day Bar endpoint:
+  GET https://api.massive.com/v2/aggs/ticker/{ticker}/prev
+Auth via `apiKey` query parameter (not Bearer token).
 Returns current price and daily percent change for each ticker.
 """
 import time
 from typing import Dict, List, Tuple
 
-_BASE = "https://api.massive.com/v1"
+_BASE = "https://api.massive.com"
 _DELAY = 0.2  # seconds between requests
 
 
 def fetch_quotes(tickers: List[str], api_key: str) -> Dict[str, Tuple[float, float]]:
     """Return {ticker: (price, daily_return)} for each ticker.
 
+    Calls GET /v2/aggs/ticker/{ticker}/prev with apiKey as a query param.
     daily_return is fractional (e.g. 0.012 = +1.2%).
     Raises on HTTP/parsing errors so the caller can fall back.
     """
     import requests  # lazy import so mock path has no dependency
 
-    headers = {"Authorization": f"Bearer {api_key}"}
     results: Dict[str, Tuple[float, float]] = {}
     for ticker in tickers:
         resp = requests.get(
-            f"{_BASE}/quote",
-            params={"symbol": ticker},
-            headers=headers,
+            f"{_BASE}/v2/aggs/ticker/{ticker}/prev",
+            params={"apiKey": api_key},
             timeout=5,
         )
         resp.raise_for_status()
         data = resp.json()
-        price = float(data["price"])
-        change_pct = float(data.get("changePercent", 0))  # daily % change
-        results[ticker] = (price, round(change_pct / 100, 6))
+        bars = data.get("results", [])
+        if not bars:
+            results[ticker] = (0.0, 0.0)
+            time.sleep(_DELAY)
+            continue
+        bar = bars[0]
+        close = float(bar["c"])
+        open_ = float(bar["o"])
+        daily_return = (close / open_ - 1) if open_ else 0.0
+        results[ticker] = (close, round(daily_return, 6))
         time.sleep(_DELAY)
     return results

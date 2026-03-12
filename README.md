@@ -182,7 +182,7 @@ cp .env.example .env
 | Variable | Service | Free tier? | Used for |
 |---|---|---|---|
 | `FINNHUB_API_KEY` | [finnhub.io](https://finnhub.io) | Yes (60 req/min) | Live quote prices + daily % change |
-| `MASSIVE_API_KEY` | [polygon.io](https://polygon.io) | Yes (5 req/min) | Previous-day OHLC (fallback if Finnhub unset) |
+| `MASSIVE_API_KEY` | [massive.com](https://massive.com) | Yes (5 req/min) | Previous-day OHLC (fallback if Finnhub unset) |
 | `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) | Pay-as-you-go | LLM agent scoring (Haiku) + autoresearch prompt generation (Sonnet) |
 
 Keys are loaded from `.env` via `python-dotenv`. Standard env vars also work.
